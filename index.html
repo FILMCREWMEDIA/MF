@@ -196,6 +196,19 @@ footer{display:flex;justify-content:space-between;gap:16px;color:var(--faint);fo
 :root.dark .toast{background:#eef0f3;color:#111827}
 .toast.show{display:block}
 
+/* ── Sync status ────────────────────────────────── */
+.sync{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 10px;border:0;background:transparent;color:var(--muted);font-size:12.5px;font-weight:500;border-radius:var(--radius-sm);white-space:nowrap}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+.sync[data-state="ok"] i{background:var(--good)}
+.sync[data-state="saving"] i{background:var(--accent)}
+.sync[data-state="error"] i{background:var(--bad)}
+.sync[data-state="error"]{color:var(--bad);cursor:pointer}
+.sync[data-state="error"]:hover{background:var(--bad-soft)}
+.gate-help{color:var(--muted);font-size:.78rem;margin-top:1rem;line-height:1.5;text-align:left}
+.gate-help a{color:var(--accent-ink);font-weight:600}
+.gate-help ol{margin:.4rem 0 0;padding-left:1.2rem}
+.gate-help li{margin:.2rem 0}
+
 /* ── Password gate ──────────────────────────────── */
 .gate{position:fixed;top:0;right:0;bottom:0;left:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:1.5rem}
 .gate.hidden{display:none}
@@ -265,6 +278,8 @@ footer{display:flex;justify-content:space-between;gap:16px;color:var(--faint);fo
   .brand-sep,.brand h1{display:none}
   .logo{width:110px;height:36px}
   .btn .btn-text{display:none}
+  .sync span{display:none}
+  .sync{padding:0 6px}
   .btn{padding:0 10px}
   .wrap{padding:14px 14px 32px}
   .kpi-grid{grid-template-columns:1fr 1fr}
@@ -289,7 +304,7 @@ footer{display:flex;justify-content:space-between;gap:16px;color:var(--faint);fo
   @page{size:A4 landscape;margin:10mm}
   html,body{background:#fff!important;color:#111!important}
   .topbar{position:static;border-bottom:1px solid #bbb}
-  .topbar-actions,.export,.export-menu,.add-actions,.danger,.btn-view,.btn,.gate,.toast,.modal-backdrop,.panel.add-panel,.client-search{display:none!important}
+  .topbar-actions,.sync,.export,.export-menu,.add-actions,.danger,.btn-view,.btn,.gate,.toast,.modal-backdrop,.panel.add-panel,.client-search{display:none!important}
   .date-chip{display:inline-flex!important;border:0}
   .wrap{padding:10px 0 0;max-width:none}
   .kpis,.panel{box-shadow:none!important;border:1px solid #ccc!important;break-inside:avoid}
@@ -346,6 +361,26 @@ footer{display:flex;justify-content:space-between;gap:16px;color:var(--faint);fo
   })();
 </script>
 
+<div class="gate hidden" id="ghGate" aria-hidden="true" style="z-index:9998">
+  <div class="gate-card">
+    <div class="gate-logo">Monitor <span>Facturare</span></div>
+    <div class="gate-sub">Conectare la stocarea GitHub</div>
+    <form class="gate-form" id="ghForm">
+      <input class="gate-input" id="ghInput" type="password" placeholder="GitHub token" autocomplete="off" spellcheck="false" style="letter-spacing:.04em">
+      <button class="gate-btn" type="submit" id="ghBtn">Conectează</button>
+      <div class="gate-error" id="ghError"></div>
+    </form>
+    <div class="gate-help">
+      Datele (facturile și PDF-urile) sunt salvate în repo-ul privat <b>FILMCREWMEDIA/MF-data</b>. Introdu o singură dată, pe acest dispozitiv, un token fine-grained cu acces la acel repo:
+      <ol>
+        <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Creează token</a> (Fine-grained)</li>
+        <li>Repository access: Only select repositories, alege <b>MF-data</b></li>
+        <li>Permissions, Repository: <b>Contents</b>, Read and write</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
 <header class="topbar">
   <div class="topbar-in">
     <div class="brand">
@@ -362,6 +397,7 @@ footer{display:flex;justify-content:space-between;gap:16px;color:var(--faint);fo
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 7h12M5.5 1.5v3M10.5 1.5v3"/></svg>
         <span id="heroDate">–</span>
       </span>
+      <button class="sync" id="syncStatus" type="button" data-state="idle" title="Stare sincronizare GitHub"><i></i><span>Neconectat</span></button>
       <details class="export" id="exportDetails">
         <summary class="btn">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4.8 6.8L8 10l3.2-3.2M2.5 11v2a1 1 0 001 1h9a1 1 0 001-1v-2"/></svg>
@@ -376,6 +412,14 @@ footer{display:flex;justify-content:space-between;gap:16px;color:var(--faint);fo
           <button type="button" id="saveXlsxBtn">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.5" width="12" height="11" rx="1"/><path d="M2 6.5h12M2 9.5h12M6 2.5v11"/></svg>
             Salvează XLSX
+          </button>
+          <button type="button" id="ghReloadBtn">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 01-9.4 3.9M2.5 8a5.5 5.5 0 019.4-3.9"/><path d="M12 1.5v3h-3M4 14.5v-3h3"/></svg>
+            Reîncarcă din GitHub
+          </button>
+          <button type="button" id="ghTokenBtn">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="10.5" r="3"/><path d="M7.6 8.4L14 2M11 5l2 2M9 7l2 2"/></svg>
+            Schimbă tokenul GitHub
           </button>
         </div>
       </details>
@@ -506,12 +550,157 @@ if(window.pdfjsLib){ window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnj
 const PDF_DB_NAME="monitor_facturare_pdf_store_v1", PDF_STORE="pdfs";
 const MONTHLY=12000, START=new Date(2025,9,1);
 const KEY="monitor_facturare_v3", CLIENTS_KEY="monitor_facturare_clients_v1", THEME_KEY="monitor_facturare_theme_v1";
+
+// ---- GitHub storage (private repo) ----
+const GH={owner:"FILMCREWMEDIA",repo:"MF-data",dataPath:"data.json",pdfDir:"pdf",tokenKey:"monitor_facturare_gh_token"};
+let ghSha=null, ghPushTimer=null, ghPushing=false, ghDirty=false, ghSuppress=false;
+function ghToken(){try{return localStorage.getItem(GH.tokenKey)||""}catch(e){return ""}}
+function ghSetToken(t){try{if(t)localStorage.setItem(GH.tokenKey,t);else localStorage.removeItem(GH.tokenKey)}catch(e){}}
+function ghHeaders(extra){return Object.assign({"Authorization":"Bearer "+ghToken(),"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},extra||{})}
+function ghUrl(path){return "https://api.github.com/repos/"+GH.owner+"/"+GH.repo+"/contents/"+path.split("/").map(encodeURIComponent).join("/")}
+function b64FromBytes(bytes){let bin="";const chunk=0x8000;for(let i=0;i<bytes.length;i+=chunk)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+chunk));return btoa(bin)}
+function b64FromString(str){return b64FromBytes(new TextEncoder().encode(str))}
+function b64ToString(b64){const bin=atob(String(b64).replace(/\s/g,""));const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new TextDecoder().decode(bytes)}
+function setSync(state,msg){const el=document.getElementById("syncStatus");if(!el)return;el.dataset.state=state;el.title=msg;const sp=el.querySelector("span");if(sp)sp.textContent=msg}
+function showGhGate(msg){const g=document.getElementById("ghGate");if(!g)return;g.classList.remove("hidden");g.setAttribute("aria-hidden","false");const e=document.getElementById("ghError");if(e)e.textContent=msg||"";setSync("idle","Neconectat");setTimeout(()=>{const i=document.getElementById("ghInput");if(i)i.focus()},50)}
+function hideGhGate(){const g=document.getElementById("ghGate");if(!g)return;g.classList.add("hidden");g.setAttribute("aria-hidden","true")}
+async function ghGetMeta(path){
+ const r=await fetch(ghUrl(path)+"?t="+Date.now(),{headers:ghHeaders(),cache:"no-store"});
+ if(r.status===404)return null;
+ if(r.status===401)throw Object.assign(new Error("unauthorized"),{status:401});
+ if(!r.ok)throw new Error("GitHub "+r.status);
+ return r.json();
+}
+async function ghLoadData(){
+ const meta=await ghGetMeta(GH.dataPath);
+ if(!meta){ghSha=null;return null}
+ ghSha=meta.sha;
+ let text;
+ if(meta.content){text=b64ToString(meta.content)}
+ else{
+   const r=await fetch(ghUrl(GH.dataPath)+"?t="+Date.now(),{headers:ghHeaders({"Accept":"application/vnd.github.raw+json"}),cache:"no-store"});
+   if(!r.ok)throw new Error("GitHub "+r.status);
+   text=await r.text();
+ }
+ return JSON.parse(text);
+}
+function applyRemote(data){
+ ghSuppress=true;
+ invoices=Array.isArray(data.invoices)?data.invoices:[];
+ clients=Array.isArray(data.clients)?data.clients:[];
+ writeJSON(KEY,invoices);writeJSON(CLIENTS_KEY,clients);
+ ghSuppress=false;
+ render();
+}
+function schedulePush(){
+ if(!ghToken())return;
+ clearTimeout(ghPushTimer);
+ setSync("saving","Se salvează...");
+ ghPushTimer=setTimeout(ghPushNow,900);
+}
+async function ghPushNow(){
+ if(ghPushing){ghDirty=true;return}
+ ghPushing=true;ghDirty=false;setSync("saving","Se salvează...");
+ try{
+   const payload={version:1,updatedAt:new Date().toISOString(),invoices,clients};
+   const body={message:"Update data "+payload.updatedAt,content:b64FromString(JSON.stringify(payload,null,1))};
+   if(ghSha)body.sha=ghSha;
+   const r=await fetch(ghUrl(GH.dataPath),{method:"PUT",headers:ghHeaders(),body:JSON.stringify(body)});
+   if(r.status===409){
+     ghPushing=false;
+     alert("Datele au fost modificate între timp de pe alt dispozitiv.\n\nSe încarcă versiunea de pe GitHub. Ultima ta modificare nu a fost salvată și trebuie refăcută.");
+     await ghRefresh();
+     return;
+   }
+   if(r.status===401){ghPushing=false;ghSetToken("");showGhGate("Tokenul nu mai este valid. Introdu unul nou.");return}
+   if(!r.ok)throw new Error("GitHub "+r.status);
+   const j=await r.json();
+   ghSha=j.content&&j.content.sha?j.content.sha:ghSha;
+   setSync("ok","Sincronizat");
+ }catch(e){
+   console.error("GitHub push:",e);
+   ghDirty=true;
+   setSync("error","Nesalvat pe GitHub, click pentru reîncercare");
+   ghPushing=false;
+   return;
+ }
+ ghPushing=false;
+ if(ghDirty)schedulePush();
+}
+async function ghRefresh(){
+ setSync("saving","Se încarcă...");
+ try{
+   const data=await ghLoadData();
+   if(data)applyRemote(data);
+   setSync("ok","Sincronizat");
+ }catch(e){
+   console.error("GitHub load:",e);
+   if(e.status===401){ghSetToken("");showGhGate("Tokenul nu mai este valid. Introdu unul nou.");return}
+   setSync("error","Nu pot citi datele din GitHub, click pentru reîncercare");
+ }
+}
+async function ghInit(){
+ if(!ghToken()){showGhGate("");return}
+ setSync("saving","Se încarcă...");
+ try{
+   const data=await ghLoadData();
+   if(data){applyRemote(data);setSync("ok","Sincronizat")}
+   else if(invoices.length||clients.length){await ghMigrateLocalPDFs();schedulePush()}
+   else setSync("ok","Sincronizat");
+ }catch(e){
+   console.error("GitHub init:",e);
+   if(e.status===401){ghSetToken("");showGhGate("Tokenul nu mai este valid. Introdu unul nou.");return}
+   setSync("error","Nu pot citi datele din GitHub, click pentru reîncercare");
+ }
+}
+async function ghVerifyToken(token){
+ const r=await fetch("https://api.github.com/repos/"+GH.owner+"/"+GH.repo+"?t="+Date.now(),{headers:{"Authorization":"Bearer "+token,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},cache:"no-store"});
+ if(r.status===401)return "Token invalid.";
+ if(r.status===404)return "Tokenul nu are acces la repo-ul "+GH.owner+"/"+GH.repo+" sau repo-ul nu există.";
+ if(!r.ok)return "GitHub a răspuns cu eroarea "+r.status+".";
+ const j=await r.json();
+ if(!j.permissions||!j.permissions.push)return "Tokenul nu are drept de scriere (Contents: Read and write).";
+ return "";
+}
+async function ghMigrateLocalPDFs(){
+ // First connection with existing local data: upload the PDFs already stored in this browser.
+ for(const inv of invoices){
+   const id=inv.attachment&&inv.attachment.id; if(!id)continue;
+   try{
+     const db=await openPDFDB();
+     const stored=await new Promise((resolve,reject)=>{const tx=db.transaction(PDF_STORE,"readonly"),req=tx.objectStore(PDF_STORE).get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)});
+     db.close();
+     if(stored&&stored.blob){setSync("saving","Se urcă PDF "+(stored.name||id)+"...");await ghUploadPDF(id,stored.blob,stored.name)}
+   }catch(e){console.warn("Migrare PDF "+id+":",e)}
+ }
+}
+async function ghUploadPDF(id,file,name){
+ const bytes=new Uint8Array(await file.arrayBuffer());
+ const r=await fetch(ghUrl(GH.pdfDir+"/"+id+".pdf"),{method:"PUT",headers:ghHeaders(),body:JSON.stringify({message:"Add "+(name||file.name||id),content:b64FromBytes(bytes)})});
+ if(r.status===401){ghSetToken("");showGhGate("Tokenul nu mai este valid. Introdu unul nou.")}
+ if(!r.ok)throw new Error("GitHub upload "+r.status);
+}
+async function ghFetchPDF(id){
+ const r=await fetch(ghUrl(GH.pdfDir+"/"+id+".pdf")+"?t="+Date.now(),{headers:ghHeaders({"Accept":"application/vnd.github.raw+json"}),cache:"no-store"});
+ if(!r.ok)return null;
+ return new Blob([await r.arrayBuffer()],{type:"application/pdf"});
+}
+async function ghDeletePDF(id){
+ const meta=await ghGetMeta(GH.pdfDir+"/"+id+".pdf");
+ if(!meta)return;
+ const r=await fetch(ghUrl(GH.pdfDir+"/"+id+".pdf"),{method:"DELETE",headers:ghHeaders(),body:JSON.stringify({message:"Delete "+id,sha:meta.sha})});
+ if(!r.ok)throw new Error("GitHub delete "+r.status);
+}
+// ---- end GitHub storage ----
+
 const MONTHS=["Ianuarie","Februarie","Martie","Aprilie","Mai","Iunie","Iulie","August","Septembrie","Octombrie","Noiembrie","Decembrie"];
 let invoices=readJSON(KEY,[]);
 let clients=readJSON(CLIENTS_KEY,[]);
 
 function readJSON(key,fallback){try{const x=localStorage.getItem(key);return x?JSON.parse(x):fallback}catch(e){return fallback}}
-function writeJSON(key,value){try{localStorage.setItem(key,JSON.stringify(value));return true}catch(e){alert("Browserul nu permite salvarea locală. Verifică permisiunile pentru fișiere locale.");return false}}
+function writeJSON(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch(e){console.warn("localStorage:",e)}
+ if(!ghSuppress&&(key===KEY||key===CLIENTS_KEY))schedulePush();
+ return true}
 function money(n){return new Intl.NumberFormat("ro-RO",{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n)||0)+" lei"}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 function localDate(s){const p=String(s).split("-").map(Number);return new Date(p[0],p[1]-1,p[2])}
@@ -563,7 +752,7 @@ async function addInvoice(){
    attachment=await storePDF(pendingInvoiceFile);
  }catch(err){
    console.error(err);
-   alert("PDF-ul nu a putut fi stocat local. Verifică spațiul disponibil în browser.");
+   alert("PDF-ul nu a putut fi salvat (local sau pe GitHub). Verifică conexiunea și tokenul.");
    return;
  }
  const invoiceId=String(Date.now())+"_"+Math.random().toString(36).slice(2);
@@ -939,6 +1128,13 @@ async function storePDF(file){
    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
  });
  db.close();
+ if(ghToken()){
+   try{await ghUploadPDF(id,file)}
+   catch(e){
+     try{const db2=await openPDFDB();await new Promise((res,rej)=>{const tx=db2.transaction(PDF_STORE,"readwrite");tx.objectStore(PDF_STORE).delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db2.close()}catch(_){}
+     throw e;
+   }
+ }
  return {id,name:file.name,type:file.type||"application/pdf",size:file.size};
 }
 async function getPDF(id){
@@ -948,10 +1144,17 @@ async function getPDF(id){
    req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);
  });
  db.close();
- return result;
+ if(result&&result.blob)return result;
+ if(!ghToken())return result;
+ const blob=await ghFetchPDF(id);
+ if(!blob)return result;
+ const cached={id,name:id+".pdf",type:"application/pdf",size:blob.size,blob};
+ try{const db2=await openPDFDB();await new Promise((res,rej)=>{const tx=db2.transaction(PDF_STORE,"readwrite");tx.objectStore(PDF_STORE).put(cached,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db2.close()}catch(e){console.warn(e)}
+ return cached;
 }
 async function deletePDF(id){
  if(!id)return;
+ if(ghToken()){try{await ghDeletePDF(id)}catch(e){console.warn("GitHub delete:",e)}}
  const db=await openPDFDB();
  await new Promise((resolve,reject)=>{
    const tx=db.transaction(PDF_STORE,"readwrite");
@@ -987,7 +1190,7 @@ async function openInvoiceAttachment(id){
    src=item.attachment.data;
  }
  if(!src){
-   alert("PDF-ul acestei facturi nu mai este disponibil local. Reîncarcă factura PDF.");
+   alert("PDF-ul acestei facturi nu este disponibil (nici local, nici pe GitHub). Reîncarcă factura PDF.");
    return;
  }
  const modal=document.getElementById("invoiceModal"),frame=document.getElementById("invoiceFrame"),title=document.getElementById("invoiceModalTitle");
@@ -1152,6 +1355,27 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(printBtn) printBtn.addEventListener("click",()=>printDocument());
   if(pdfBtn) pdfBtn.addEventListener("click",()=>savePDF());
   if(xlsxBtn) xlsxBtn.addEventListener("click",()=>saveXLSX());
+  const ghForm=document.getElementById("ghForm");
+  if(ghForm)ghForm.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const inp=document.getElementById("ghInput"),err=document.getElementById("ghError"),btn=document.getElementById("ghBtn");
+    const token=inp.value.trim();
+    if(!token){err.textContent="Introdu tokenul.";return}
+    btn.disabled=true;err.textContent="Se verifică...";
+    try{
+      const problem=await ghVerifyToken(token);
+      if(problem){err.textContent=problem;btn.disabled=false;return}
+      ghSetToken(token);inp.value="";err.textContent="";hideGhGate();
+      await ghInit();
+    }catch(ex){err.textContent="Nu pot contacta GitHub: "+ex.message}
+    btn.disabled=false;
+  });
+  const syncBtn=document.getElementById("syncStatus");
+  if(syncBtn)syncBtn.addEventListener("click",()=>{ if(syncBtn.dataset.state!=="error")return; if(ghDirty)ghPushNow(); else ghRefresh(); });
+  const ghReloadBtn=document.getElementById("ghReloadBtn");
+  if(ghReloadBtn)ghReloadBtn.addEventListener("click",()=>{ if(!ghToken()){showGhGate("");return} ghRefresh(); });
+  const ghTokenBtn=document.getElementById("ghTokenBtn");
+  if(ghTokenBtn)ghTokenBtn.addEventListener("click",()=>{ if(confirm("Ștergi tokenul GitHub salvat pe acest dispozitiv și introduci altul?")){ghSetToken("");showGhGate("");} });
   const exportDetails=document.getElementById("exportDetails");
   if(exportDetails) exportDetails.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>exportDetails.removeAttribute("open")));
 });
@@ -1177,6 +1401,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape")closeInvoiceViewer()
    if(mq.addEventListener)mq.addEventListener("change",follow);else if(mq.addListener)mq.addListener(follow);
  }
  updateThemeButton();render();
+ ghInit();
 })();
 })();
 </script>
